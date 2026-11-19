@@ -1,0 +1,99 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+ * Shaheen Center Design System Tokens (see docs/UI_DESIGN_SYSTEM.md)
+ * Arabic RTL First | High-Contrast Academic Operations Theme
+ * ============================================================================ */
+@theme {
+    /* Typography */
+    --font-sans: 'Cairo', 'IBM Plex Sans Arabic', system-ui, -apple-system, sans-serif;
+    --font-body: 'IBM Plex Sans Arabic', 'Cairo', system-ui, sans-serif;
+
+    /* Brand Palette (Deep Teal / Academic Navy) */
+    --color-brand-50: #ecf6f8;
+    --color-brand-100: #d1e9ee;
+    --color-brand-200: #a4d4de;
+    --color-brand-500: #16697a;
+    --color-brand-600: #0f4c5c;
+    --color-brand-700: #0b3b48;
+    --color-brand-800: #082b35;
+
+    /* Accent (Warm Amber / Gold) */
+    --color-accent-50: #fffbeb;
+    --color-accent-500: #d97706;
+    --color-accent-600: #b45309;
+
+    /* Neutral Surfaces & Ink */
+    --color-surface-bg: #f8fafc;
+    --color-surface-card: #ffffff;
+    --color-surface-muted: #f1f5f9;
+    --color-surface-border: #e2e8f0;
+    --color-ink-900: #0f172a;
+    --color-ink-700: #334155;
+    --color-ink-600: #475569;
+    --color-ink-400: #94a3b8;
+
+    /* Semantic Statuses (FR-REC-02, FR-ATT-04, NFR-USE-02) */
+    --color-status-paid: #059669;
+    --color-status-paid-bg: #ecfdf5;
+    --color-status-paid-text: #065f46;
+
+    --color-status-due: #dc2626;
+    --color-status-due-bg: #fef2f2;
+    --color-status-due-text: #991b1b;
+
+    --color-status-late: #d97706;
+    --color-status-late-bg: #fffbeb;
+    --color-status-late-text: #92400e;
+
+    --color-status-info: #0284c7;
+    --color-status-info-bg: #f0f9ff;
+    --color-status-info-text: #075985;
+}
+
+@layer base {
+    html {
+        font-family: var(--font-sans);
+        direction: rtl;
+    }
+
+    body {
+        background-color: var(--color-surface-bg);
+        color: var(--color-ink-900);
+    }
+}
+
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+ * Print Layouts: A4 & 80mm Thermal Receipts / QR Cards (FR-STU-03, FR-PAY-02)
+ * ============================================================================ */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    .print-thermal-80mm {
+        width: 80mm !important;
+        margin: 0 auto !important;
+        padding: 4mm !important;
+        box-shadow: none !important;
+        border: none !important;
+        font-size: 12px !important;
+    }
+
+    .print-qr-card {
+        width: 85.6mm !important;
+        height: 54mm !important;
+        border: 1px solid #000000 !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+}

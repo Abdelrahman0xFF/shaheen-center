@@ -1,0 +1,24 @@
+{
+    "name": "shaheen-center",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Shaheen Center Management System (سنتر شاهين) - MVP Monorepo",
+    "scripts": {
+        "install:all": "npm --prefix server install && npm --prefix client install",
+        "dev:server": "npm --prefix server run dev",
+        "dev:client": "npm --prefix client run dev",
+        "check:server": "npm --prefix server run check",
+        "build:client": "npm --prefix client run build",
+        "db:validate": "npm --prefix server run db:validate",
+        "db:generate": "npm --prefix server run db:generate",
+        "db:migrate": "npm --prefix server run db:migrate",
+        "db:seed": "npm --prefix server run db:seed",
+        "db:studio": "npm --prefix server run db:studio",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "verify": "npm run format:check && npm run db:validate && npm run check:server && npm run build:client"
+    },
+    "devDependencies": {
+        "prettier": "^3.5.3"
+    }
+}

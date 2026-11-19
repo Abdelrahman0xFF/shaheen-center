@@ -1,0 +1,502 @@
+// ============================================================================
+// Shaheen Center Management System (سنتر شاهين) — Unified MVP Prisma Schema
+// Reference: SRS v1.0 | Strategy: Migration-first (see docs/DB_MIGRATIONS.md)
+// All timestamps stored in UTC (displayed in Africa/Cairo).
+// All monetary fields use Decimal(10, 2) in EGP.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum Role {
+  ADMIN
+  BRANCH_MANAGER
+  SECRETARY
+  INSTRUCTOR
+  STUDENT
+}
+
+enum PayType {
+  PERCENTAGE
+  PER_SESSION
+  MONTHLY_SALARY
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum SessionStatus {
+  SCHEDULED
+  CANCELLED
+  RESCHEDULED
+  CLOSED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+}
+
+enum PaymentMethod {
+  CASH
+  VODAFONE_CASH
+  INSTAPAY
+  CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  COMPLETED
+  VOIDED
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  SENT_MOCK
+  FAILED
+}
+
+enum NotificationType {
+  ARRIVAL
+  ABSENCE
+  PAYMENT_RECEIPT
+  SESSION_CHANGE
+  ANNOUNCEMENT
+}
+
+// ============================================================================
+// MEMBER 1 (EZZAT): Auth, RBAC, Branches, Rooms, Calendar, Settings, AuditLog
+// ============================================================================
+
+model User {
+  id                  String    @id @default(cuid())
+  role                Role
+  name                String
+  phone               String    @unique
+  username            String?   @unique
+  passwordHash        String
+  isActive            Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  refreshTokenHash    String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  branches             UserBranch[]
+  instructorProfile    Instructor?
+  studentProfile       Student?
+  auditLogs            AuditLog[]
+  recordedAttendances  Attendance[]  @relation("AttendanceRecordedBy")
+  createdPayments      Payment[]     @relation("PaymentCreatedBy")
+  voidedPayments       Payment[]     @relation("PaymentVoidedBy")
+  cashClosings         CashClosing[] @relation("CashClosingSecretary")
+  overriddenEnrollments Enrollment[] @relation("EnrollmentOverriddenBy")
+
+  @@index([role, isActive])
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users        UserBranch[]
+  rooms        Room[]
+  students     Student[]
+  payments     Payment[]
+  cashClosings CashClosing[]
+
+  @@index([isActive])
+}
+
+model UserBranch {
+  id        String   @id @default(cuid())
+  userId    String
+  branchId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId])
+  @@index([branchId])
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  branchId  String
+  name      String
+  capacity  Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch   Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  groups   Group[]
+  sessions Session[]
+
+  @@unique([branchId, name])
+  @@index([branchId, isActive])
+}
+
+model AcademicTerm {
+  id        String   @id @default(cuid())
+  name      String
+  year      String
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  holidays Holiday[]
+  groups   Group[]
+
+  @@index([isActive])
+}
+
+model Holiday {
+  id        String   @id @default(cuid())
+  termId    String?
+  name      String
+  date      DateTime @db.Date
+  isExceptional Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  term AcademicTerm? @relation(fields: [termId], references: [id], onDelete: SetNull)
+
+  @@unique([date, name])
+  @@index([date])
+}
+
+model Setting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// MEMBER 2 (GEORGE): Instructors, Courses, Groups, Sessions
+// ============================================================================
+
+model Instructor {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  subject   String
+  payType   PayType  @default(PERCENTAGE)
+  payValue  Decimal  @default(0) @db.Decimal(10, 2)
+  bio       String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  courses Course[]
+
+  @@index([isActive])
+}
+
+model Course {
+  id           String   @id @default(cuid())
+  instructorId String
+  subject      String
+  academicYear String
+  fee          Decimal  @db.Decimal(10, 2)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  instructor Instructor @relation(fields: [instructorId], references: [id], onDelete: Restrict)
+  groups     Group[]
+  payments   Payment[]
+
+  @@index([instructorId, isActive])
+  @@index([academicYear])
+}
+
+model Group {
+  id             String   @id @default(cuid())
+  courseId       String
+  roomId         String
+  academicTermId String?
+  name           String
+  /// Days of week as integers: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  daysOfWeek     Int[]
+  /// 24h time strings in Africa/Cairo local schedule, e.g., "16:00"
+  startTime      String
+  endTime        String
+  capacity       Int
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  room         Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  academicTerm AcademicTerm? @relation(fields: [academicTermId], references: [id], onDelete: SetNull)
+  sessions     Session[]
+  enrollments  Enrollment[]
+
+  @@index([courseId, isActive])
+  @@index([roomId, isActive])
+}
+
+model Session {
+  id               String        @id @default(cuid())
+  groupId          String
+  roomId           String
+  date             DateTime      @db.Date
+  /// Exact UTC window for this session (supports single-session reschedule FR-ORG-08)
+  startsAt         DateTime
+  endsAt           DateTime
+  status           SessionStatus @default(SCHEDULED)
+  cancelReason     String?
+  absenceProcessedAt DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  room        Room         @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  attendances Attendance[]
+
+  @@unique([groupId, date, startsAt])
+  @@index([date, status])
+  @@index([groupId, startsAt])
+  @@index([roomId, startsAt])
+}
+
+// ============================================================================
+// MEMBER 3 (MARCO): Parents, Students (Encrypted National ID + Soft Delete), Enrollments
+// ============================================================================
+
+model Parent {
+  id           String   @id @default(cuid())
+  name         String?
+  phone        String   @unique
+  languagePref String   @default("ar")
+  optedOutTypes String[] @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  students Student[]
+}
+
+model Student {
+  id                  String    @id @default(cuid())
+  userId              String?   @unique
+  branchId            String
+  parentId            String
+  name                String
+  phone               String
+  parentPhone         String
+  academicYear        String
+  photoUrl            String?
+  /// AES-256-GCM encrypted National ID (Admin-only via encryption.js)
+  nationalIdEncrypted String?
+  /// Keyed HMAC-SHA256 blind index for Admin search & duplicate check (FR-STU-09, 10)
+  nationalIdHash      String?   @unique
+  nationalIdImageUrl  String?
+  /// Cryptographically random, unguessable token (never National ID)
+  qrToken             String    @unique
+  registeredAt        DateTime  @default(now())
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  branch        Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  parent        Parent         @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  enrollments   Enrollment[]
+  attendances   Attendance[]
+  payments      Payment[]
+  notifications Notification[]
+
+  @@index([branchId, deletedAt])
+  @@index([phone])
+  @@index([parentPhone])
+  @@index([name])
+}
+
+model Enrollment {
+  id                     String           @id @default(cuid())
+  studentId              String
+  groupId                String
+  status                 EnrollmentStatus @default(ACTIVE)
+  startDate              DateTime         @default(now())
+  endDate                DateTime?
+  capacityOverrideReason String?
+  overriddenById         String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  student      Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  group        Group   @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  overriddenBy User?   @relation("EnrollmentOverriddenBy", fields: [overriddenById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, status])
+  @@index([groupId, status])
+}
+
+// ============================================================================
+// MEMBER 4 (MAZEN): Attendance Engine & Reception Scans
+// ============================================================================
+
+model Attendance {
+  id           String           @id @default(cuid())
+  sessionId    String
+  studentId    String
+  status       AttendanceStatus
+  scannedAt    DateTime?
+  isManual     Boolean          @default(false)
+  manualReason String?
+  recordedById String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  session    Session @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  recordedBy User?   @relation("AttendanceRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  /// Guarantees one-time-use QR scan per student per session (FR-ATT-03, AC-02)
+  @@unique([sessionId, studentId])
+  @@index([studentId, createdAt])
+  @@index([sessionId, status])
+}
+
+// ============================================================================
+// MEMBER 5 (3ATEF): Payments, Daily Cash Closing, Notifications & Templates
+// ============================================================================
+
+model Payment {
+  id            String        @id @default(cuid())
+  receiptNo     String        @unique
+  studentId     String
+  courseId      String
+  branchId      String
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod @default(CASH)
+  status        PaymentStatus @default(COMPLETED)
+  /// Subscription coverage window (FR-PAY-03)
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  sessionsCount Int?
+  notes         String?
+  paidAt        DateTime      @default(now())
+  createdById   String
+  cashClosingId String?
+  /// Never hard-delete payments (FR-PAY-08, NFR-DAT-01)
+  voidedAt      DateTime?
+  voidReason    String?
+  voidedById    String?
+  deletedAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  student     Student      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  branch      Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  createdBy   User         @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  voidedBy    User?        @relation("PaymentVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
+  cashClosing CashClosing? @relation(fields: [cashClosingId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, courseId, status])
+  @@index([branchId, paidAt])
+  @@index([createdById, paidAt])
+  @@index([cashClosingId])
+}
+
+model CashClosing {
+  id            String    @id @default(cuid())
+  branchId      String
+  secretaryId   String
+  closingDate   DateTime  @db.Date
+  totalCash     Decimal   @default(0) @db.Decimal(10, 2)
+  totalDigital  Decimal   @default(0) @db.Decimal(10, 2)
+  totalAmount   Decimal   @default(0) @db.Decimal(10, 2)
+  breakdownJson Json?
+  isLocked      Boolean   @default(false)
+  lockedAt      DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  branch    Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  secretary User      @relation("CashClosingSecretary", fields: [secretaryId], references: [id], onDelete: Restrict)
+  payments  Payment[]
+
+  @@unique([secretaryId, branchId, closingDate])
+  @@index([branchId, closingDate])
+}
+
+model Notification {
+  id             String             @id @default(cuid())
+  studentId      String
+  recipientPhone String
+  type           NotificationType
+  status         NotificationStatus @default(QUEUED)
+  messageBody    String
+  /// Prevents duplicate sends for the same event (FR-NTF-13, AC-05)
+  idempotencyKey String             @unique
+  attempts       Int                @default(0)
+  errorReason    String?
+  queuedAt       DateTime           @default(now())
+  sentAt         DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@index([studentId, createdAt])
+  @@index([status, queuedAt])
+}
+
+model MessageTemplate {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  type        NotificationType
+  language    String           @default("ar")
+  title       String
+  body        String
+  isActive    Boolean          @default(true)
+  updatedAt   DateTime         @updatedAt
+}

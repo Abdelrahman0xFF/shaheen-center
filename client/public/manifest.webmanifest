@@ -1,0 +1,19 @@
+{
+    "name": "سنتر شاهين — نظام الإدارة",
+    "short_name": "سنتر شاهين",
+    "description": "نظام إدارة سنتر شاهين التعليمي (الحضور، الطلاب، المجموعات، والمالية)",
+    "start_url": "/",
+    "display": "standalone",
+    "dir": "rtl",
+    "lang": "ar",
+    "background_color": "#F8FAFC",
+    "theme_color": "#0F4C5C",
+    "icons": [
+        {
+            "src": "/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
