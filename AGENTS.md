@@ -10,6 +10,7 @@ This file defines the mandatory architectural rules, security invariants, folder
 - **Architecture:** Monorepo with **Vertical Slices** across 5 team members.
 - **Frontend (`client/`):** React 19, Vite, Tailwind CSS v4, React Router v7, Axios, Lucide React. **Arabic RTL-first (`dir="rtl" lang="ar"`), mobile-first PWA.**
 - **Backend (`server/`):** Node.js (ESM `"type": "module"`), Express 4, Prisma ORM, PostgreSQL, Zod validation, JWT (`access` + `refresh`), `bcryptjs`.
+- **Testing:** Vitest (Node for `server/`, jsdom + React Testing Library for `client/`). See [docs/TESTING.md](./docs/TESTING.md).
 - **MVP Deferrals:** BullMQ/Redis queues, cron schedulers, offline IndexedDB sync, and Docker deployment are deferred to Post-MVP. Do **not** introduce Redis dependencies in MVP code.
 
 ---
@@ -150,12 +151,34 @@ Read [docs/UI_DESIGN_SYSTEM.md](./docs/UI_DESIGN_SYSTEM.md) before building UI c
     - `npm run db:validate` — Validates `server/prisma/schema.prisma` syntax, relations, and indexes.
     - `npm run check:server` — Imports and boots `server/src/app.js` to catch ESM import, syntax, and wiring errors.
     - `npm run build:client` — Runs `vite build` to confirm React, JSX, and Tailwind v4 compile with zero errors.
-3. **Database Client Sync (whenever `schema.prisma` changed):**
+3. **Run unit tests (mandatory for any business-logic change):**
+    ```bash
+    npm run test:unit
+    ```
+    - Every new/changed service, validator, middleware, util, or client component/hook must ship colocated `*.test.js(x)` tests (see [§8](#8-testing-standards-unit-tests) and `docs/TESTING.md`).
+    - If your checkout has not scaffolded the Vitest runner yet, follow `docs/TESTING.md` §2 once, commit the setup in its own PR, then run this step.
+4. **Database Client Sync (whenever `schema.prisma` changed):**
     - Run `npm run db:generate` and create a proper migration (`npx prisma migrate dev --name <name>`).
-4. **Functional & Runtime Verification (whenever routes, services, or UI flows changed):**
+5. **Functional & Runtime Verification (whenever routes, services, or UI flows changed):**
     - Start the server and confirm `/api/health` returns `200 OK`.
     - Test the added/modified endpoints (happy path + validation error + RBAC/branch-scope `403` check).
     - Verify affected frontend pages render cleanly in Arabic RTL with zero browser console or network errors.
     - Re-check SRS Acceptance Criteria (`AC-01`..`AC-06`) relevant to your slice.
 
-**Never mark a task complete if `npm run verify` fails or if runtime checks were skipped.**
+**Never mark a task complete if `npm run verify` fails, if `npm run test:unit` fails, or if runtime checks were skipped.**
+
+---
+
+## 8. Testing Standards (Unit Tests)
+
+Read [docs/TESTING.md](./docs/TESTING.md) before writing tests.
+
+- **Runner:** Vitest. Server tests run in Node; client tests run in jsdom with React Testing Library. No other runner is allowed without team agreement.
+- **Location:** Tests are **colocated** with the code they cover (`auth.service.test.js` next to `auth.service.js`). Shared helpers live in `server/src/test/` and `client/src/test/`. Do not create a parallel top-level test tree.
+- **Ownership:** You own the tests for your vertical slice (same file map as §3). Do not edit another member's tests without coordinating in team chat.
+- **Mandatory:** Any PR that adds or changes service, validator, middleware, utility, or client hook/component logic MUST include unit tests covering its decision branches. A PR without them is not complete.
+- **No real I/O:** Unit tests must never hit PostgreSQL, HTTP, or the filesystem. Mock `prisma` (`vi.mock('../config/prisma.js')`) and `logAudit`; mock Axios for client tests. Integration/Supertest tests are a separate phase.
+- **Deterministic time:** Use `vi.useFakeTimers()` / `vi.setSystemTime()` for lockout, expiry, late-threshold, and closing-date logic. Never depend on the host clock or host timezone.
+- **Critical invariants:** Each slice must have one dedicated test per invariant it owns (national-ID stripping for non-admins, soft-delete only, branch isolation, audit logging, notification idempotency, one scan per session, EGP/Decimal money, UTC→`Africa/Cairo` display). See `docs/TESTING.md` §4.1.
+- **Accessibility assertions:** Assert accessible text, `role`, and Arabic labels — never Tailwind class names or colour alone (`NFR-USE-02`).
+- **Coverage:** Report it in the PR; do not game it. Every branch (including early returns) in a service needs a case.
