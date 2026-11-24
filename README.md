@@ -57,4 +57,5 @@ npm run dev:client   # Vite React UI on http://localhost:5173
 - [AGENTS.md](./AGENTS.md) — Engineering rules, vertical slice boundaries, security invariants, and coding conventions
 - [docs/UI_DESIGN_SYSTEM.md](./docs/UI_DESIGN_SYSTEM.md) — Colors, Arabic fonts, RTL rules, accessibility, and thermal/A4 print specs
 - [docs/DB_MIGRATIONS.md](./docs/DB_MIGRATIONS.md) — Team Prisma migration workflow to avoid database conflicts
+- [docs/TESTING.md](./docs/TESTING.md) — Unit-testing strategy (Vitest), ownership per slice, and critical-invariant checklist
 - [tasks/README.md](./tasks/README.md) — Team task tracker & links to each member's checklist
