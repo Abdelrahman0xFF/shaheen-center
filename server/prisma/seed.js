@@ -3,24 +3,75 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient, Role, NotificationType } from '@prisma/client';
 
 const prisma = new PrismaClient();
+const ADMIN_PASSWORD_MIN_LENGTH = 12;
+
+/**
+ * Reads and validates the initial Admin credentials from the environment.
+ * Never logs or returns the plaintext password outside this module.
+ */
+function readAdminConfig() {
+    const name = (process.env.ADMIN_NAME || '').trim();
+    const phone = (process.env.ADMIN_PHONE || '').trim();
+    const password = process.env.ADMIN_PASSWORD || '';
+
+    const missing = [];
+    if (!name) missing.push('ADMIN_NAME');
+    if (!phone) missing.push('ADMIN_PHONE');
+    if (!password) missing.push('ADMIN_PASSWORD');
+
+    if (missing.length > 0) {
+        throw new Error(`Missing required environment variable(s): ${missing.join(', ')}`);
+    }
+
+    if (password.length < ADMIN_PASSWORD_MIN_LENGTH) {
+        throw new Error(
+            `ADMIN_PASSWORD must be at least ${ADMIN_PASSWORD_MIN_LENGTH} characters long.`,
+        );
+    }
+
+    return { name, phone, password };
+}
+
+/**
+ * Creates the initial ADMIN account once. Existing accounts are never modified,
+ * so re-running the seed cannot reset an administrator's credentials.
+ */
+async function seedAdmin({ name, phone, password }) {
+    const existing = await prisma.user.findUnique({ where: { phone } });
+
+    if (existing) {
+        if (existing.role !== Role.ADMIN) {
+            throw new Error(
+                `ADMIN_PHONE is already assigned to an account with role ${existing.role}; refusing to create a duplicate ADMIN.`,
+            );
+        }
+
+        console.log('Admin account already exists (role ADMIN). No changes made.');
+        return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await prisma.user.create({
+        data: {
+            name,
+            phone,
+            passwordHash,
+            role: Role.ADMIN,
+            isActive: true,
+            failedLoginAttempts: 0,
+        },
+    });
+
+    console.log('Admin account created (role ADMIN).');
+}
 
 async function main() {
     console.log('Seeding Shaheen Center MVP database...');
 
-    // 1. Default Admin account (FR-AUTH-01, FR-AUTH-05)
-    const adminPasswordHash = await bcrypt.hash('Admin@123', 10);
-    const admin = await prisma.user.upsert({
-        where: { phone: '01000000000' },
-        update: {},
-        create: {
-            name: 'مدير النظام (أدمن)',
-            phone: '01000000000',
-            username: 'admin',
-            passwordHash: adminPasswordHash,
-            role: Role.ADMIN,
-            isActive: true,
-        },
-    });
+    // 1. Initial Admin account (FR-AUTH-01, FR-AUTH-05)
+    const adminConfig = readAdminConfig();
+    await seedAdmin(adminConfig);
 
     // 2. Default Main Branch & Room
     let mainBranch = await prisma.branch.findFirst({ where: { name: 'الفرع الرئيسي' } });
@@ -114,15 +165,13 @@ async function main() {
         });
     }
 
-    console.log(
-        `Seed complete. Admin: ${admin.phone} (password: Admin@123) | Branch: ${mainBranch.name}`,
-    );
+    console.log('Seed complete.');
 }
 
 main()
     .catch((err) => {
-        console.error('Seed error:', err);
-        process.exit(1);
+        console.error('Seed error:', err.message);
+        process.exitCode = 1;
     })
     .finally(async () => {
         await prisma.$disconnect();

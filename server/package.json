@@ -8,18 +8,29 @@
         "dev": "nodemon src/server.js",
         "start": "node src/server.js",
         "check": "node -e \"import('./src/app.js').then(() => console.log('Server modules OK'))\"",
+        "test": "npm run test:unit && npm run test:integration",
+        "test:unit": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
+        "test:integration": "vitest run --config vitest.integration.config.js",
         "db:validate": "prisma validate",
         "db:generate": "prisma generate",
         "db:migrate": "prisma migrate dev",
         "db:deploy": "prisma migrate deploy",
         "db:seed": "node prisma/seed.js",
-        "db:studio": "prisma studio"
+        "db:verify-admin": "node scripts/verify-admin.js",
+        "db:studio": "prisma studio",
+        "db:test:reset": "node scripts/test-db.js reset",
+        "db:test:migrate": "node scripts/test-db.js migrate",
+        "db:backup": "node scripts/backup-db.js",
+        "db:restore": "node scripts/restore-db.js",
+        "db:verify-backup": "node scripts/verify-backup.js"
     },
     "prisma": {
         "seed": "node prisma/seed.js"
     },
     "dependencies": {
-        "@prisma/client": "^6.6.0",
+        "@prisma/client": "6.19.3",
         "bcryptjs": "^3.0.2",
         "cors": "^2.8.5",
         "dotenv": "^16.5.0",
@@ -31,8 +42,11 @@
         "zod": "^4.6.7"
     },
     "devDependencies": {
+        "@vitest/coverage-v8": "^5.1.2",
         "nodemon": "^3.1.14",
-        "prisma": "^6.6.0"
+        "prisma": "6.19.3",
+        "supertest": "^7.3.2",
+        "vitest": "^5.1.2"
     },
     "keywords": [],
     "author": "",

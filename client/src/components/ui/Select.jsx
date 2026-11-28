@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 export function Select({
     label,
     error,
@@ -8,7 +10,8 @@ export function Select({
     className = '',
     ...props
 }) {
-    const selectId = id || props.name;
+    const generatedId = useId();
+    const selectId = id || props.name || generatedId;
     return (
         <div className="space-y-1.5">
             {label && (

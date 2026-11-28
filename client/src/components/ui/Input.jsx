@@ -1,5 +1,8 @@
+import { useId } from 'react';
+
 export function Input({ label, error, hint, id, className = '', ...props }) {
-    const inputId = id || props.name;
+    const generatedId = useId();
+    const inputId = id || props.name || generatedId;
     return (
         <div className="space-y-1.5">
             {label && (

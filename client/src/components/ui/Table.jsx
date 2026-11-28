@@ -3,7 +3,17 @@ export function Table({
     rows = [],
     emptyMessage = 'لا توجد بيانات لعرضها',
     keyField = 'id',
+    children = null,
 }) {
+    // Children form (explicit <thead>/<tbody>) takes precedence when provided.
+    if (children) {
+        return (
+            <div className="overflow-x-auto rounded-xl border border-surface-border bg-surface-card">
+                <table className="w-full border-collapse text-start text-sm">{children}</table>
+            </div>
+        );
+    }
+
     return (
         <div className="overflow-x-auto rounded-xl border border-surface-border bg-surface-card">
             <table className="w-full border-collapse text-start text-sm">

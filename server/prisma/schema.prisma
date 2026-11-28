@@ -94,12 +94,17 @@ model User {
   isActive            Boolean   @default(true)
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
+  /// Bumped on sensitive changes to invalidate already-issued access tokens.
+  tokenVersion        Int       @default(0)
+  /// @deprecated Superseded by the RefreshToken model for multi-device sessions.
+  /// Retained until a separately reviewed cleanup migration.
   refreshTokenHash    String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
   // Relations
   branches             UserBranch[]
+  refreshTokens        RefreshToken[]
   instructorProfile    Instructor?
   studentProfile       Student?
   auditLogs            AuditLog[]
@@ -110,6 +115,36 @@ model User {
   overriddenEnrollments Enrollment[] @relation("EnrollmentOverriddenBy")
 
   @@index([role, isActive])
+}
+
+/// Opaque refresh-token sessions (FR-AUTH-03, NFR-SEC-03).
+/// Only a SHA-256 hash of the token is persisted; the raw value lives solely in the
+/// HttpOnly cookie. Multiple rows per user enable multi-device sessions, while
+/// `familyId` groups a rotation chain so replay can revoke the whole family.
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  familyId   String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  userAgent  String?
+  ipAddress  String?
+  createdAt  DateTime  @default(now())
+
+  // Rotation hardening (A7): replay vs race classification + absolute family lifetime.
+  replacedByTokenId String?
+  rotatedAt         DateTime?
+  familyExpiresAt   DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([familyId])
+  @@index([revokedAt])
+  @@index([familyId, revokedAt])
+  @@index([replacedByTokenId])
 }
 
 model Branch {

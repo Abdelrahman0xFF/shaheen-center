@@ -20,17 +20,29 @@
 
 ## 1. تأسيس قاعدة البيانات (Day 0 — أولوية قصوى)
 
-- [ ] إنشاء وتشغيل أول Prisma Migration (`npx prisma migrate dev --name init_mvp_schema`) ورفعه على `main`.
-- [ ] تشغيل `npm run db:seed` والتأكد من إنشاء حساب الأدمن الافتراضي والفرع الرئيسي والإعدادات وقوالب الرسائل.
+- [x] إنشاء وتشغيل أول Prisma Migration (`npx prisma migrate dev --name init_mvp_schema`) ورفعه على `main`.
+- [x] تشغيل `npm run db:seed` والتأكد من إنشاء حساب الأدمن الافتراضي والفرع الرئيسي والإعدادات وقوالب الرسائل.
 
 ## 2. الواجهة الخلفية — MVP (Backend)
 
-- [ ] **المصادقة (`FR-AUTH-01`, `02`, `07`):**
-    - [ ] تنفيذ `POST /api/auth/login` بالتحقق عبر `bcryptjs` وإصدار `accessToken` + `refreshToken`.
-    - [ ] تطبيق قفل مؤقت للحساب (`failedLoginAttempts`, `lockedUntil`) عند تكرار الدخول الفاشل.
-    - [ ] تنفيذ `POST /api/auth/refresh` لتجديد التوكن وتدوير `refreshTokenHash`.
-    - [ ] تنفيذ `POST /api/auth/logout` لمسح `refreshTokenHash`.
+- [x] **المصادقة (`FR-AUTH-01`, `02`, `07`):**
+    - [x] تنفيذ `POST /api/auth/login` بالتحقق عبر `bcryptjs` وإصدار `accessToken` + `refreshToken`.
+    - [x] تطبيق قفل مؤقت للحساب (`failedLoginAttempts`, `lockedUntil`) عند تكرار الدخول الفاشل.
+    - [x] تنفيذ `POST /api/auth/refresh` لتجديد التوكن وتدوير `refreshToken`.
+    - [x] تنفيذ `POST /api/auth/logout` لمسح الجلسة الحالية.
+    - [x] تنفيذ `POST /api/auth/logout-all` لإنهاء جميع الجلسات.
+    - [x] تنفيذ `GET /api/auth/me` لبيانات المستخدم الحالي.
+    - [x] وسطware `authenticate` و `authorizeRoles` و `enforceBranchScope`.
+    - [x] نموذج `RefreshToken` للجلسات المتعددة والتدوير والكشف عن الإعادة.
+
 - [ ] **إدارة الموظفين (`FR-AUTH-04`, `05`):**
+    - [ ] تنفيذ `GET /api/staff` (مع البحث والفلترة والـ Pagination `FR-GEN-01`).
+    - [ ] تنفيذ `POST /api/staff` لإنشاء موظف وتعيين الفروع (`UserBranch`) مع تسجيل `logAudit()`.
+    - [ ] تنفيذ `PATCH /api/staff/:id` و `PATCH /api/staff/:id/status` و `POST /api/staff/:id/reset-password`.
+
+- [x] **واجهة المصادقة الأمامية:**
+    - [x] تفعيل `ProtectedRoute` في `client/src/App.jsx` وتحديث Refresh Token Interceptor في `client/src/api/client.js`.
+    - [x] ربط صفحة `LoginPage.jsx` برسائل الخطأ وحالات التحميل وإظهار/إخفاء كلمة المرور.**
     - [ ] تنفيذ `GET /api/staff` (مع البحث والفلترة والـ Pagination `FR-GEN-01`).
     - [ ] تنفيذ `POST /api/staff` لإنشاء موظف وتعيين الفروع (`UserBranch`) مع تسجيل `logAudit()`.
     - [ ] تنفيذ `PATCH /api/staff/:id` و `PATCH /api/staff/:id/status` و `POST /api/staff/:id/reset-password`.
@@ -63,3 +75,25 @@
 - [ ] تصدير واستعادة النسخ الاحتياطي لقاعدة البيانات (`FR-ADM-09`, `NFR-REL-04`).
 - [ ] Service Worker كامل للتخزين المؤقت للـ PWA (`UI-02`).
 - [ ] خيار تبديل اللغة إلى الإنجليزية (`UI-01`).
+
+## Implementation status (this session)
+
+- [x] A1 ownership authorization helpers
+- [x] A2 route protection (branches/staff/settings)
+- [x] A3 origin/CSRF hardening
+- [x] A4 error handling + safe logging + Prisma mapping + request id + redaction
+- [x] A5 frontend role route protection
+- [x] A6 auth state sync + role landing
+- [x] A7 lockout reset + refresh race + migration
+- [x] D1 branches & rooms
+- [x] D2 staff
+- [x] D3 settings & calendar
+- [x] D4 audit log
+- [x] D5-D8 admin screens
+- [x] D9 backup/restore scripts
+- [x] B1 integration harness
+- [x] B2 unit gaps
+- [x] C1 docs/AUTHORIZATION.md
+- [x] C2 env validation
+- [x] C3 dependency security note
+- [x] docs/AUTHENTICATION.md, SECURITY.md, BACKUP_RESTORE.md

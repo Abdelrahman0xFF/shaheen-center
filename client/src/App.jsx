@@ -1,6 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
 import { LoginPage } from './pages/LoginPage';
+import { ProtectedRoute, RoleProtectedRoute } from './components/ProtectedRoute';
+import { UnauthorizedPage } from './pages/UnauthorizedPage';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { StudentHomePage } from './pages/StudentHomePage';
 
 // Member 1 (Ezzat)
 import { BranchesPage } from './pages/admin/BranchesPage';
@@ -26,44 +30,76 @@ import { PaymentsPage } from './pages/finance/PaymentsPage';
 import { DailyClosingPage } from './pages/finance/DailyClosingPage';
 import { MessagesPage } from './pages/finance/MessagesPage';
 
+const ADMIN = ['ADMIN'];
+const ADMIN_MANAGER = ['ADMIN', 'BRANCH_MANAGER'];
+const RECEPTION = ['ADMIN', 'BRANCH_MANAGER', 'SECRETARY'];
+const SESSIONS = ['ADMIN', 'BRANCH_MANAGER', 'SECRETARY', 'INSTRUCTOR'];
+const STUDENTS = ['ADMIN', 'BRANCH_MANAGER', 'SECRETARY', 'INSTRUCTOR'];
+
 /**
- * NOTE: Once Member 1 finishes /api/auth/login, wrap the MainLayout <Route>
- * inside <Route element={<ProtectedRoute />}> (already built in components/ProtectedRoute.jsx).
+ * Application routes. Authenticated routes require ProtectedRoute; role-gated
+ * routes require RoleProtectedRoute with an explicit role set (A5).
  */
 export default function App() {
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-            <Route element={<MainLayout />}>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route element={<ProtectedRoute />}>
+                <Route element={<MainLayout />}>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-                {/* Member 5 (3ATEF) */}
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/payments" element={<PaymentsPage />} />
-                <Route path="/daily-closing" element={<DailyClosingPage />} />
-                <Route path="/messages" element={<MessagesPage />} />
+                    {/* Member 5 (3ATEF) */}
+                    <Route element={<RoleProtectedRoute allowedRoles={ADMIN_MANAGER} />}>
+                        <Route path="/dashboard" element={<DashboardPage />} />
+                    </Route>
+                    <Route element={<RoleProtectedRoute allowedRoles={RECEPTION} />}>
+                        <Route path="/payments" element={<PaymentsPage />} />
+                        <Route path="/daily-closing" element={<DailyClosingPage />} />
+                        <Route path="/messages" element={<MessagesPage />} />
+                    </Route>
 
-                {/* Member 4 (Mazen) */}
-                <Route path="/reception" element={<ReceptionPage />} />
-                <Route path="/attendance" element={<AttendanceSheetsPage />} />
+                    {/* Member 4 (Mazen) */}
+                    <Route element={<RoleProtectedRoute allowedRoles={RECEPTION} />}>
+                        <Route path="/reception" element={<ReceptionPage />} />
+                    </Route>
+                    <Route element={<RoleProtectedRoute allowedRoles={SESSIONS} />}>
+                        <Route path="/attendance" element={<AttendanceSheetsPage />} />
+                    </Route>
 
-                {/* Member 3 (Marco) */}
-                <Route path="/students" element={<StudentsPage />} />
-                <Route path="/students/:id" element={<StudentProfilePage />} />
+                    {/* Member 3 (Marco) */}
+                    <Route element={<RoleProtectedRoute allowedRoles={STUDENTS} />}>
+                        <Route path="/students" element={<StudentsPage />} />
+                        <Route path="/students/:id" element={<StudentProfilePage />} />
+                    </Route>
 
-                {/* Member 2 (George) */}
-                <Route path="/groups" element={<GroupsPage />} />
-                <Route path="/sessions" element={<SessionsPage />} />
+                    {/* Member 2 (George) */}
+                    <Route element={<RoleProtectedRoute allowedRoles={ADMIN_MANAGER} />}>
+                        <Route path="/groups" element={<GroupsPage />} />
+                    </Route>
+                    <Route element={<RoleProtectedRoute allowedRoles={SESSIONS} />}>
+                        <Route path="/sessions" element={<SessionsPage />} />
+                    </Route>
 
-                {/* Member 1 (Ezzat) */}
-                <Route path="/branches" element={<BranchesPage />} />
-                <Route path="/staff" element={<StaffPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/audit-logs" element={<AuditLogsPage />} />
+                    {/* Member 1 (Ezzat) */}
+                    <Route element={<RoleProtectedRoute allowedRoles={ADMIN_MANAGER} />}>
+                        <Route path="/branches" element={<BranchesPage />} />
+                    </Route>
+                    <Route element={<RoleProtectedRoute allowedRoles={ADMIN} />}>
+                        <Route path="/staff" element={<StaffPage />} />
+                        <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/audit-logs" element={<AuditLogsPage />} />
+                    </Route>
+
+                    {/* Student */}
+                    <Route element={<RoleProtectedRoute allowedRoles={['STUDENT']} />}>
+                        <Route path="/my" element={<StudentHomePage />} />
+                    </Route>
+                </Route>
             </Route>
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
         </Routes>
     );
 }

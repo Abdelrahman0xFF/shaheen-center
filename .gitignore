@@ -29,3 +29,11 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# backups
+server/backups/
+*.dump
+*.sha256
+*.sql.gz
+*.gpg
+

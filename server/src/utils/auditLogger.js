@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma.js';
+import { redactSensitive } from './redact.js';
 
 /**
  * Writes an immutable audit log entry (FR-RPT-02, FR-RPT-03, NFR-DAT-03).
@@ -22,9 +23,15 @@ export async function logAudit({
             action,
             entity,
             entityId,
-            before,
-            after,
+            before: sanitizeAuditPayload(before),
+            after: sanitizeAuditPayload(after),
             ipAddress,
         },
     });
+}
+
+/** Defensive redaction so secrets never reach the immutable audit store. */
+export function sanitizeAuditPayload(value) {
+    if (value === null || value === undefined) return null;
+    return redactSensitive(value);
 }

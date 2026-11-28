@@ -1,55 +1,129 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import apiClient, { tokenStorage } from '../api/client';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { authSession, refreshAccessToken } from '../api/client';
+import { loginRequest, logoutRequest, logoutAllRequest, meRequest } from '../api/auth';
 
 const AuthContext = createContext(null);
 
 /**
- * Member 1 (Ezzat) owns AuthContext integration with /api/auth/login, /refresh, /me, /logout.
- * During early UI development before Auth API is complete, `devBypassUser` lets teammates
- * preview layouts by switching roles cleanly if desired.
+ * Member 1 (Ezzat) — Authentication context.
+ *
+ * Access tokens live only in memory. Sessions are restored by calling the
+ * refresh endpoint on application startup (the refresh token itself is an
+ * HttpOnly cookie and is never readable from JavaScript). User state stays in
+ * sync with the Axios interceptor via authSession.onSessionChanged (A6).
  */
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [sessionExpired, setSessionExpired] = useState(false);
 
     useEffect(() => {
-        const token = tokenStorage.getAccess();
-        if (!token) {
-            setLoading(false);
-            return;
+        let cancelled = false;
+
+        authSession.onExpired(() => {
+            if (!cancelled) {
+                setUser(null);
+                setSessionExpired(true);
+            }
+        });
+
+        const unsubscribe = authSession.onSessionChanged(async (payload) => {
+            if (cancelled) return;
+            if (payload?.expired) {
+                authSession.clear();
+                setUser(null);
+                setSessionExpired(true);
+                return;
+            }
+            if (payload?.user) {
+                setUser(payload.user);
+                setSessionExpired(false);
+                return;
+            }
+            // No user in payload; fall back to /auth/me.
+            try {
+                const profile = await meRequest();
+                if (!cancelled) setUser(profile || null);
+            } catch {
+                if (!cancelled) setUser(null);
+            }
+        });
+
+        async function restoreSession() {
+            try {
+                const refreshResult = await refreshAccessToken();
+                authSession.setAccessToken(refreshResult.accessToken);
+
+                let profile = refreshResult.user;
+                if (!profile) {
+                    profile = await meRequest();
+                }
+
+                if (!cancelled) {
+                    setUser(profile || null);
+                    setSessionExpired(false);
+                }
+            } catch {
+                authSession.clear();
+                if (!cancelled) setUser(null);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
         }
 
-        apiClient
-            .get('/auth/me')
-            .then((res) => setUser(res.data?.data || null))
-            .catch(() => {
-                tokenStorage.clear();
-                setUser(null);
-            })
-            .finally(() => setLoading(false));
+        restoreSession();
+
+        return () => {
+            cancelled = true;
+            authSession.onExpired(null);
+            unsubscribe();
+        };
     }, []);
 
-    async function login(credentials) {
-        const res = await apiClient.post('/auth/login', credentials);
-        const { accessToken, refreshToken, user: loggedInUser } = res.data.data;
-        tokenStorage.setTokens(accessToken, refreshToken);
-        setUser(loggedInUser);
-        return loggedInUser;
-    }
+    const login = useCallback(async (credentials) => {
+        const data = await loginRequest(credentials);
+        authSession.setAccessToken(data?.accessToken || null);
+        setUser(data?.user || null);
+        setSessionExpired(false);
+        return data?.user || null;
+    }, []);
 
-    async function logout() {
+    const logout = useCallback(async () => {
         try {
-            await apiClient.post('/auth/logout');
+            await logoutRequest();
         } catch {
-            // Ignore network errors on logout
+            // Network errors must not prevent local session cleanup.
         } finally {
-            tokenStorage.clear();
+            authSession.clear();
             setUser(null);
+            setSessionExpired(false);
         }
-    }
+    }, []);
+
+    const logoutAll = useCallback(async () => {
+        try {
+            await logoutAllRequest();
+        } catch {
+            // Network errors must not prevent local session cleanup.
+        } finally {
+            authSession.clear();
+            setUser(null);
+            setSessionExpired(false);
+        }
+    }, []);
 
     return (
-        <AuthContext.Provider value={{ user, setUser, loading, login, logout }}>
+        <AuthContext.Provider
+            value={{
+                user,
+                setUser,
+                loading,
+                sessionExpired,
+                login,
+                logout,
+                logoutAll,
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );

@@ -16,7 +16,18 @@
         "db:studio": "npm --prefix server run db:studio",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "verify": "npm run format:check && npm run db:validate && npm run check:server && npm run build:client"
+        "verify": "npm run format:check && npm run db:validate && npm run check:server && npm run build:client",
+        "test": "npm run test:unit && npm run test:integration",
+        "test:unit": "npm --prefix server run test:unit && npm --prefix client run test:unit",
+        "test:unit:server": "npm --prefix server run test:unit",
+        "test:unit:client": "npm --prefix client run test:unit",
+        "test:integration": "npm --prefix server run test:integration",
+        "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage",
+        "db:test:reset": "npm --prefix server run db:test:reset",
+        "db:test:migrate": "npm --prefix server run db:test:migrate",
+        "db:backup": "npm --prefix server run db:backup",
+        "db:restore": "npm --prefix server run db:restore",
+        "db:verify-backup": "npm --prefix server run db:verify-backup"
     },
     "devDependencies": {
         "prettier": "^3.5.3"
